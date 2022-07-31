@@ -1,5 +1,33 @@
 @host=https://localhost:7291
 
 
-GET {{host}}/weatherforecast
+GET {{host}}/api/v1/commands
+Content-Type : application/json
+
+
+GET {{host}}/api/v1/commands/2
+Content-Type : application/json
+
+
+POST {{host}}/api/v1/commands
+Content-Type : application/json
+
+{
+"howTo":"Build a .Net App",
+"platform":".Net",
+"commandLine":"dotnet build"
+}
+
+
+PUT {{host}}/api/v1/commands/2
+Content-Type : application/json
+
+{
+"howTo":"Run a .Net App with hot reload",
+"platform":".Net",
+"commandLine":"dotnet watch run"
+}
+
+
+DELETE {{host}}/api/v1/commands/4
 Content-Type : application/json
