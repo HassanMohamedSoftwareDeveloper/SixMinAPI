@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SixMinAPI", "SixMinAPI.csproj", "{FFC4210F-B79E-4D74-A9B5-4DBBD5CB5EF6}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Requests", "Requests", "{C6038E15-59A7-4EFD-BF5B-38FD3BF81C6F}"
+	ProjectSection(SolutionItems) = preProject
+		MinimalApi.http = MinimalApi.http
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{8C37FE68-173B-4B52-8CBC-0C6EAE32864E}"
 	ProjectSection(SolutionItems) = preProject

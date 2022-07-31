@@ -1,0 +1,5 @@
+@host=https://localhost:7291
+
+
+GET {{host}}/weatherforecast
+Content-Type : application/json
