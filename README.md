@@ -336,6 +336,233 @@ app.MapDelete("api/v1/commands/{id}", async (ICommandRepo repo, IMapper mapper, 
 -	Validation can be added to .NET Minimal APIs, e.g.:
     -	FluentValidation, MinimalValidation
 
+# Extend Minimal APIs with Swagger
+1. Add Some packages
+```cli
+    dotnet  add package Swashbuckle.AspNetCore
+```
+2. Register Swagger Services
+```C#
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+```
+3. Configure App to use swagger
+```C#
+     app.UseSwagger();
+     app.UseSwaggerUI();
+```
+## To set sample response with swagger
+> You can use attributes
+
+```C#
+app.MapGet("api/v1/commands",
+[ProducesResponseType(200, Type = typeof(CommandReadDto))]
+async (ICommandRepo repo, IMapper mapper) =>
+{
+    var commands = await repo.GetAllCommands();
+    return Results.Ok(mapper.Map<IEnumerable<CommandReadDto>>(commands));
+});
+```
+> Or Use Fluent Manner with <code>Produces</code> Method
+```C#
+app.MapGet("api/v1/commands/{id}", async (ICommandRepo repo, IMapper mapper, [FromRoute] int id) =>
+{
+    var command = await repo.GetCommandById(id);
+    if (command is not null)
+        return Results.Ok(mapper.Map<CommandReadDto>(command));
+    return Results.NotFound();
+}).Produces<CommandReadDto>(200);
+```
+# Extend Minimal APIs with authentication
+1. Register Services
+```C#
+    builder.Services.AddAuthentication();
+    builder.Services.AddAuthorization();
+```
+2. Configure App 
+```C#
+    app.UseAuthentication();
+    app.UseAuthorization();
+```
+> Now Authorization is upported but with the default Schema
+
+> **So we need to use JwtBearer**
+Add Some packages
+```cli
+    dotnet  add package Microsoft.AspNetCore.Authentication.JwtBearer
+```
+Register Authentication Service to use Jwt default schema
+```C#
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer();
+```
+> To Authorize endpoint you can use <code>Authorize</code> attribute
+```C#
+app.MapPost("api/v1/commands",
+    [Authorize] 
+async (ICommandRepo repo, IMapper mapper, [FromBody] CommandCreateDto commandDto) =>
+    {
+        var commandModel = mapper.Map<Command>(commandDto);
+
+        await repo.CreateCommand(commandModel);
+        await repo.SaveChanges();
+
+        var cmdReadDto = mapper.Map<CommandReadDto>(commandModel);
+        return Results.Created($"api/v1/commands/{cmdReadDto.Id}", cmdReadDto);
+    });
+```
+> Or use <code>RequireAuthorization</code> Method in Fluent manner
+```C#
+app.MapPut("api/v1/commands/{id}", 
+    async (ICommandRepo repo, IMapper mapper, [FromRoute] int id, [FromBody] CommandUpdateDto commandDto) =>
+{
+    var command = await repo.GetCommandById(id);
+    if (command is null)
+        return Results.NotFound();
+    mapper.Map(commandDto, command);
+    await repo.SaveChanges();
+    return Results.NoContent();
+}).RequireAuthorization();
+```
+
+> Or you can authorize all endpoints
+```C#
+builder.Services.AddAuthorization(opt =>
+{
+    opt.FallbackPolicy = new AuthorizationPolicyBuilder()
+    .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+    .RequireAuthenticatedUser()
+    .Build();
+});
+```
+> If you need some endpoints to allow anonymous use <code>AllowAnonymous</code> in fluent manner
+```C#
+app.MapGet("api/v1/commands/{id}", async (ICommandRepo repo, IMapper mapper, [FromRoute] int id) =>
+{
+    var command = await repo.GetCommandById(id);
+    if (command is not null)
+        return Results.Ok(mapper.Map<CommandReadDto>(command));
+    return Results.NotFound();
+}).Produces<CommandReadDto>(200)
+.AllowAnonymous();
+```
+
+# Extend Minimal APIs with (authentication and swagger)
+> register Swagger Gen service with some options
+```C#
+builder.Services.AddSwaggerGen(opt =>
+{
+    opt.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the bearer schema",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey
+    });
+
+    opt.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference=new OpenApiReference
+                {
+                     Id = "Bearer",
+                    Type = ReferenceType.SecurityScheme,
+                }
+            },
+            new List<string>()
+        }
+    });
+});
+```
+> You will find an Authorize button like below picture
+![Minimal APIs with (authentication and swagger)!](/DocsImg/7.png "Minimal APIs with (authentication and swagger)")
+
+# Extend Minimal APIs with Validation
+> As we annonce before Minimal APIs <code>Don’t support model validation</code> but still we can validate model 
+using <code>FluentValidation</code> or <code>MinimalValidation</code>
+
+>Lets validate model using <code>FluentValidation</code>
+
+1. Add FluentValidation packages
+```cli
+    dotnet add package FluentValidation.AspNetCore
+    dotnet add package FluentValidation.DependencyInjectionExtensions 
+```
+2. Add folder with name <code>Validations</code>
+3. Add Validator classes
+```C#
+using FluentValidation;
+using SixMinAPI.Dtos;
+
+namespace SixMinAPI.Validations;
+
+public class CommandCreateDtoValidator : AbstractValidator<CommandCreateDto>
+{
+    public CommandCreateDtoValidator()
+    {
+        RuleFor(x => x.HowTo).NotEmpty();
+        RuleFor(x => x.Platform).NotEmpty().MaximumLength(5);
+        RuleFor(x => x.CommandLine).NotEmpty();
+    }
+}
+
+
+public class CommandUpdateDtoValidator : AbstractValidator<CommandUpdateDto>
+{
+	public CommandUpdateDtoValidator()
+	{
+		RuleFor(x => x.HowTo).NotEmpty();
+		RuleFor(x => x.Platform).NotEmpty().MaximumLength(5);
+		RuleFor(x => x.CommandLine).NotEmpty();
+	}
+}
+```
+4. Register FluentValidation
+```C#
+    builder.Services.AddFluentValidation(opt => 
+    opt.RegisterValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies()));
+```
+5. In Endpoint Inject <code>IValidator< Type></code> and validate manualy.
+```C#
+app.MapPost("api/v1/commands",
+// [Authorize]
+async (ICommandRepo repo, IMapper mapper, IValidator<CommandCreateDto> validator, [FromBody] CommandCreateDto commandDto) =>
+    {
+        var validationResult = await validator.ValidateAsync(commandDto);
+        if (validationResult.IsValid is false)
+        {
+            var errors =new { errors = validationResult.Errors.Select(x => x.ErrorMessage) };
+            return Results.BadRequest(errors);
+        }
+        var commandModel = mapper.Map<Command>(commandDto);
+
+        await repo.CreateCommand(commandModel);
+        await repo.SaveChanges();
+
+        var cmdReadDto = mapper.Map<CommandReadDto>(commandModel);
+        return Results.Created($"api/v1/commands/{cmdReadDto.Id}", cmdReadDto);
+    }).AllowAnonymous();
+
+app.MapPut("api/v1/commands/{id}",
+    async (ICommandRepo repo, IMapper mapper, IValidator<CommandUpdateDto> validator, [FromRoute] int id, [FromBody] CommandUpdateDto commandDto) =>
+    {
+        var validationResult = await validator.ValidateAsync(commandDto);
+        if (validationResult.IsValid is false)
+        {
+            var errors =new { errors = validationResult.Errors.Select(x => x.ErrorMessage) };
+            return Results.BadRequest(errors);
+        }
+        var command = await repo.GetCommandById(id);
+        if (command is null)
+            return Results.NotFound();
+        mapper.Map(commandDto, command);
+        await repo.SaveChanges();
+        return Results.NoContent();
+    }).AllowAnonymous();//.RequireAuthorization();
+
+```
 # Topic from Microsoft Docs : 
 https://docs.microsoft.com/en-us/aspnet/core/tutorials/min-web-api?view=aspnetcore-6.0&tabs=visual-studio
 

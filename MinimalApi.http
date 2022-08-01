@@ -19,7 +19,7 @@ Content-Type : application/json
 }
 
 
-PUT {{host}}/api/v1/commands/2
+PUT {{host}}/api/v1/commands/6
 Content-Type : application/json
 
 {
