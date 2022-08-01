@@ -335,3 +335,10 @@ app.MapDelete("api/v1/commands/{id}", async (ICommandRepo repo, IMapper mapper, 
 -	Out the box with the [ApiController] attribute
 -	Validation can be added to .NET Minimal APIs, e.g.:
     -	FluentValidation, MinimalValidation
+
+# Topic from Microsoft Docs : 
+https://docs.microsoft.com/en-us/aspnet/core/tutorials/min-web-api?view=aspnetcore-6.0&tabs=visual-studio
+
+
+## Source Code
+https://github.com/HassanMohamedSoftwareDeveloper/SixMinAPI
